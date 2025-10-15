@@ -1,5 +1,7 @@
 # Algoritmer og datastukturer
 
-Gjort i samarbeid med Solfrid Emblem Holte og Martha Luise Vogel
+## Om dette repoet
 
-I dette repoet ligger oppgaver gjort i faget Algoritmer og Datastrukturer høsten 2025.
+Her finner du løsninger på oppgaver fra faget **Algoritmer og Datastrukturer** høsten 2025.  
+Arbeidet er gjort i samarbeid med Solfrid Emblem Holte og Martha Luise Vogel.
+
