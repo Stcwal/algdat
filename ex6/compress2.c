@@ -12,6 +12,7 @@ struct MinHeap {
 	unsigned capacity;
 	struct MinheapNode** array;
 };
+
 struct MinheapNode {
 	struct Node *node;
 };
@@ -59,33 +60,23 @@ int isSizeOne(struct MinHeap *minHeap) {
 	return minHeap->size == 1;
 }
 
-struct Node* extractMin(struct MinHeap *minHeap) {
-	if (minHeap->size == 0) return NULL;
-	struct MinheapNode *root = minHeap->array[0];
-	struct Node *res = root->node;
-
-	minHeap->array[0] = minHeap->array[minHeap->size - 1];
-	minHeap->size--;
-	minHeapify(minHeap, 0);
-
-	free(root);
-	return res;
+struct MinheapNode* extractMin(struct MinHeap* minHeap) {
+    struct MinheapNode* temp = minHeap->array[0];
+    minHeap->array[0] = minHeap->array[minHeap->size - 1];
+    --minHeap->size;
+    minHeapify(minHeap, 0);
+    return temp;
 }
 
-void insertMinHeap(struct MinHeap *minHeap, struct Node *node) {
-	if (minHeap->size == minHeap->capacity) {
-		/* reallocate if needed */
-		minHeap->capacity *= 2;
-		minHeap->array = (struct MinheapNode**)realloc(minHeap->array, minHeap->capacity * sizeof(struct MinheapNode*));
-	}
+void insertMinHeap(struct MinHeap* minHeap, struct MinheapNode* minHeapNode) {
+    ++minHeap->size;
+    int i = minHeap->size - 1;
 
-	int i = minHeap->size++;
-	minHeap->array[i] = newMinheapNode(node);
-
-	while (i && minHeap->array[(i - 1) / 2]->node->frequency > minHeap->array[i]->node->frequency) {
-		swapMinheapNode(&minHeap->array[i], &minHeap->array[(i - 1) / 2]);
-		i = (i - 1) / 2;
-	}
+    while (i && minHeapNode->node->frequency < minHeap->array[(i - 1) / 2]->node->frequency) {
+        minHeap->array[i] = minHeap->array[(i - 1) / 2];
+        i = (i - 1) / 2;
+    }
+    minHeap->array[i] = minHeapNode;
 }
 
 void buildMinHeap(struct MinHeap *minHeap) {
@@ -103,16 +94,39 @@ struct Node* newNode(unsigned sequence, unsigned frequency) {
   return node;
 }
 
-void printCodes(struct Node *root, int arr[], int top) {
-    if (root->left) {
-        arr[top] = 0;
-        printCodes(root->left, arr, top + 1);
+struct Node* buildHuffmanTree(unsigned sequences[], unsigned freq[], int size) {
+    struct Node *left, *right, *top;
+    struct MinHeap* minHeap = createMinHeap(size);
+
+    for (int i = 0; i < size; ++i)
+        minHeap->array[i] = newMinheapNode(newNode(sequences[i], freq[i]));
+
+    minHeap->size = size;
+    buildMinHeap(minHeap);
+
+    while (!isSizeOne(minHeap)) {
+        left = extractMin(minHeap)->node;
+        right = extractMin(minHeap)->node;
+
+        top = newNode(0, left->frequency + right->frequency);
+        top->left = left;
+        top->right = right;
+
+        insertMinHeap(minHeap, newMinheapNode(top));
     }
-    if (root->right) {
-        arr[top] = 1;
-        printCodes(root->right, arr, top + 1);
+
+    return extractMin(minHeap)->node;
+}
+
+void countFrequencies(const char* filename, unsigned freq[256]) {
+    FILE* file = fopen(filename, "rb");
+    if (!file) return;
+
+    int c;
+    while ((c = fgetc(file)) != EOF) {
+        freq[c]++;
     }
-    
+    fclose(file);
 }
 
 void storeCodes(struct Node *root, int arr[], int top, char codes[][256]) {
@@ -133,78 +147,123 @@ void storeCodes(struct Node *root, int arr[], int top, char codes[][256]) {
     }
 }
 
-int main() {
-	FILE *fp = fopen("diverse.lyx", "rb");
+char* encodeFile(const char* filename, char codes[][256], long* encodedLength) {
+    FILE* file = fopen(filename, "rb");
+    if (!file) return NULL;
 
-	fseek(fp, 0, SEEK_END);
-	long filesize = ftell(fp);
-	rewind(fp);
+    fseek(file, 0, SEEK_END);
+    long fileSize = ftell(file);
+    fseek(file, 0, SEEK_SET);
 
-	unsigned char *buffer = (unsigned char *)malloc(filesize);
+    char* encoded = (char*)malloc(fileSize * 256);
+    *encodedLength = 0;
 
-	fread(buffer, 1, filesize, fp);
-	fclose(fp);
-	printf("Filstørrelse: %ld bytes\n", filesize);
+    int c;
+    while ((c = fgetc(file)) != EOF) {
+        char* code = codes[c];
+        for (int i = 0; code[i] != '\0'; i++) {
+            encoded[*encodedLength] = code[i];
+            (*encodedLength)++;
+        }
+    }
+    encoded[*encodedLength] = '\0';
 
-	unsigned int frequency[256] = {0};
-	for (long i = 0; i < filesize; i++) {
-			frequency[buffer[i]]++;
-	}
+    fclose(file);
+    return encoded;
+}
 
-	int uniqueBytes = 0;
-	for (int i = 0; i<256; i++) {
-		if (frequency[i]>0) {
-			uniqueBytes++;
-		}
-	}
-
-	struct Node** nodes = (struct Node**)malloc(uniqueBytes * sizeof(struct Node*));
-	int nodeIndex = 0;
-
-	for (int i = 0; i < 256; i++) {
-			if (frequency[i] > 0) {
-					nodes[nodeIndex] = newNode(i, frequency[i]);
-					nodeIndex++;
-			}
-	}
-
-    struct MinHeap *minHeap = createMinHeap(uniqueBytes);
+void writeTree(struct Node* root, FILE* file) {
+    if (!root) return;
     
-    for (int i = 0; i < uniqueBytes; i++) {
-        insertMinHeap(minHeap, nodes[i]);
+    if (!root->left && !root->right) {
+        fputc('1', file);
+        fputc(root->sequence, file);
+    } else {
+        fputc('0', file);
+        writeTree(root->left, file);
+        writeTree(root->right, file);
+    }
+}
+
+void writeCompressedFile(const char* outputFile, struct Node* root, const char* encoded, long encodedLength) {
+    FILE* file = fopen(outputFile, "wb");
+    if (!file) return;
+    
+    writeTree(root, file);
+    
+    fputc('\n', file);
+    
+    fwrite(&encodedLength, sizeof(long), 1, file);
+    
+    unsigned char byte = 0;
+    int bitCount = 0;
+    
+    for (long i = 0; i < encodedLength; i++) {
+        byte = (byte << 1) | (encoded[i] - '0');
+        bitCount++;
+        
+        if (bitCount == 8) {
+            fputc(byte, file);
+            byte = 0;
+            bitCount = 0;
+        }
     }
     
-    while (!isSizeOne(minHeap)) {
-        struct Node *left = extractMin(minHeap);
-        struct Node *right = extractMin(minHeap);
-        
-        struct Node *parent = newNode(256, left->frequency + right->frequency);
-        parent->left = left;
-        parent->right = right;
-        
-        insertMinHeap(minHeap, parent);
+    if (bitCount > 0) {
+        byte = byte << (8 - bitCount);  
+        fputc(byte, file);
     }
     
-    struct Node *root = extractMin(minHeap);
-    
-    printf("Huffman-tre bygget! Root frequency: %u\n", root->frequency);
-    
-    // Generer og print koder
-    int arr[256];
-    printf("\nHuffman-koder:\n");
-    printCodes(root, arr, 0);
-    
-    // Lagre koder for kompresjon
+    fclose(file);
+}
+
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        printf("Usage: %s <input_file>\n", argv[0]);
+        return 1;
+    }
+
+    FILE* originalFile = fopen(argv[1], "rb");
+    fseek(originalFile, 0, SEEK_END);
+    long originalSize = ftell(originalFile);
+    fclose(originalFile);
+
+    unsigned freq[256] = {0};
+    countFrequencies(argv[1], freq);
+
+    unsigned sequences[256];
+    unsigned frequencies[256];
+    int size = 0;
+
+    for (int i = 0; i < 256; i++) {
+        if (freq[i] > 0) {
+            sequences[size] = i;
+            frequencies[size] = freq[i];
+            size++;
+        }
+    }
+
+    struct Node* root = buildHuffmanTree(sequences, frequencies, size);
+
     char codes[256][256] = {0};
-    storeCodes(root, arr, 0, codes);
-    
-    printf("\nEksempel - kode for byte 'A' (65): %s\n", codes[65]);
+    int arr[100];
+    int top = 0;
+    storeCodes(root, arr, top, codes);
 
-    free(minHeap->array);
-    free(minHeap);
-  for (int i = 0; i < uniqueBytes; i++) {
-    free(nodes[i]);
-  }
-  free(buffer);
-  return 0;
+    long encodedLength;
+    char* encoded = encodeFile(argv[1], codes, &encodedLength);
+
+    writeCompressedFile("output.huff", root, encoded, encodedLength);
+
+    FILE* compressedFile = fopen("output.huff", "rb");
+    fseek(compressedFile, 0, SEEK_END);
+    long compressedSize = ftell(compressedFile);
+    fclose(compressedFile);
+
+    printf("Original file size: %ld bytes\n", originalSize);
+    printf("Compressed file size: %ld bytes\n", compressedSize);
+    printf("Compression ratio: %.2f%%\n", (1.0 - (double)compressedSize / originalSize) * 100);
+
+    free(encoded);
+    return 0;
 }
