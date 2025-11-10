@@ -48,6 +48,7 @@ public class oving7 {
   static class Graph {
     List<Node> nodes;
     List<List<Edge>> adjacency;
+    List<List<Edge>> reverseAdjacency;
     Map<Integer, Node> nodeMap;
     
     Graph(List<Node> nodes, List<Edge> edges) {
@@ -64,13 +65,18 @@ public class oving7 {
       }
       
       this.adjacency = new ArrayList<>();
+      this.reverseAdjacency = new ArrayList<>();
       for (int i = 0; i <= maxId; i++) {
         adjacency.add(new ArrayList<>());
+        reverseAdjacency.add(new ArrayList<>());
       }
       
       for (Edge e : edges) {
         if (e.from < adjacency.size()) {
           adjacency.get(e.from).add(e);
+        }
+        if (e.to < reverseAdjacency.size()) {
+          reverseAdjacency.get(e.to).add(new Edge(e.to, e.from, e.travelTime, e.length, e.speedLimit));
         }
       }
     }
@@ -112,13 +118,8 @@ public class oving7 {
     
     Landmarks(int numLandmarks, int graphSize) {
       this.landmarkIds = new int[numLandmarks];
-      this.distancesTo = new double[numLandmarks][graphSize];
-      this.distancesFrom = new double[numLandmarks][graphSize];
-      
-      for (int i = 0; i < numLandmarks; i++) {
-        Arrays.fill(distancesTo[i], Double.POSITIVE_INFINITY);
-        Arrays.fill(distancesFrom[i], Double.POSITIVE_INFINITY);
-      }
+      this.distancesTo = new double[numLandmarks][];
+      this.distancesFrom = new double[numLandmarks][];
     }
   }
 
@@ -378,14 +379,10 @@ public class oving7 {
       System.out.println("Preprocessing landmark " + (i+1) + "/" + numLandmarks + " (node " + landmarkId + ")");
       
       DijkstraResult toResult = dijkstra(graph, landmarkId, -1);
-      for (int j = 0; j < graph.adjacency.size(); j++) {
-        landmarks.distancesFrom[i][j] = toResult.distances[j];
-      }
+      landmarks.distancesFrom[i] = toResult.distances;
       
       DijkstraResult fromResult = dijkstraReverse(graph, landmarkId);
-      for (int j = 0; j < graph.adjacency.size(); j++) {
-        landmarks.distancesTo[i][j] = fromResult.distances[j];
-      }
+      landmarks.distancesTo[i] = fromResult.distances;
     }
     
     return landmarks;
@@ -423,17 +420,18 @@ public class oving7 {
       
       result.nodesVisited++;
       
-      for (int v = 0; v < graph.adjacency.size(); v++) {
-        for (Edge edge : graph.adjacency.get(v)) {
-          if (edge.to == u) {
-            double newDist = result.distances[u] + edge.travelTime;
-            
-            if (newDist < result.distances[v]) {
-              result.distances[v] = newDist;
-              result.previous[v] = u;
-              pq.offer(new DijkstraNode(v, newDist));
-            }
-          }
+      for (Edge edge : graph.reverseAdjacency.get(u)) {
+        int v = edge.to;
+        if (v >= result.distances.length) {
+          continue;
+        }
+        
+        double newDist = result.distances[u] + edge.travelTime;
+        
+        if (newDist < result.distances[v]) {
+          result.distances[v] = newDist;
+          result.previous[v] = u;
+          pq.offer(new DijkstraNode(v, newDist));
         }
       }
     }
