@@ -98,14 +98,14 @@ public class oving7 {
   }
 
   static class DijkstraResult {
-    double[] distances;
+    double[] dist;
     int[] previous;
     int nodesVisited;
     
     DijkstraResult(int size) {
-      this.distances = new double[size];
+      this.dist = new double[size];
       this.previous = new int[size];
-      Arrays.fill(distances, Double.POSITIVE_INFINITY);
+      Arrays.fill(dist, Double.POSITIVE_INFINITY);
       Arrays.fill(previous, -1);
       this.nodesVisited = 0;
     }
@@ -181,14 +181,14 @@ public class oving7 {
     DijkstraResult result = new DijkstraResult(graph.adjacency.size());
     PriorityQueue<DijkstraNode> pq = new PriorityQueue<>();
     
-    result.distances[start] = 0;
+    result.dist[start] = 0;
     pq.offer(new DijkstraNode(start, 0));
     
     while (!pq.isEmpty()) {
       DijkstraNode current = pq.poll();
       int u = current.nodeId;
       
-      if (current.distance > result.distances[u]) {
+      if (current.distance > result.dist[u]) {
         continue;
       }
       
@@ -200,14 +200,14 @@ public class oving7 {
       
       for (Edge edge : graph.adjacency.get(u)) {
         int v = edge.to;
-        if (v >= result.distances.length) {
+        if (v >= result.dist.length) {
           continue;
         }
         
-        double newDist = result.distances[u] + edge.travelTime;
+        double newDist = result.dist[u] + edge.travelTime;
         
-        if (newDist < result.distances[v]) {
-          result.distances[v] = newDist;
+        if (newDist < result.dist[v]) {
+          result.dist[v] = newDist;
           result.previous[v] = u;
           pq.offer(new DijkstraNode(v, newDist));
         }
@@ -218,35 +218,35 @@ public class oving7 {
   }
 
   public static double altHeuristic(Landmarks landmarks, int node, int target) {
-    double maxLower = 0;
+    double maxLow = 0;
     
     for (int i = 0; i < landmarks.landmarkIds.length; i++) {
-      double toLandmark = landmarks.distancesTo[i][node];
-      double targetToLandmark = landmarks.distancesTo[i][target];
-      double fromLandmark = landmarks.distancesFrom[i][node];
-      double targetFromLandmark = landmarks.distancesFrom[i][target];
+      double toLm = landmarks.distancesTo[i][node];
+      double targetToLm = landmarks.distancesTo[i][target];
+      double fromLm = landmarks.distancesFrom[i][node];
+      double targetFromLm = landmarks.distancesFrom[i][target];
       
-      double lower1 = Math.abs(toLandmark - targetToLandmark);
-      double lower2 = Math.abs(fromLandmark - targetFromLandmark);
+      double lower1 = Math.abs(toLm - targetToLm);
+      double lower2 = Math.abs(fromLm - targetFromLm);
       
-      maxLower = Math.max(maxLower, Math.max(lower1, lower2));
+      maxLow = Math.max(maxLow, Math.max(lower1, lower2));
     }
     
-    return maxLower;
+    return maxLow;
   }
 
   public static DijkstraResult altSearch(Graph graph, Landmarks landmarks, int start, int target) {
     DijkstraResult result = new DijkstraResult(graph.adjacency.size());
     PriorityQueue<DijkstraNode> pq = new PriorityQueue<>();
     
-    result.distances[start] = 0;
+    result.dist[start] = 0;
     pq.offer(new DijkstraNode(start, 0));
     
     while (!pq.isEmpty()) {
       DijkstraNode current = pq.poll();
       int u = current.nodeId;
       
-      if (current.distance > result.distances[u] + altHeuristic(landmarks, u, target)) {
+      if (current.distance > result.dist[u] + altHeuristic(landmarks, u, target)) {
         continue;
       }
       
@@ -258,14 +258,14 @@ public class oving7 {
       
       for (Edge edge : graph.adjacency.get(u)) {
         int v = edge.to;
-        if (v >= result.distances.length) {
+        if (v >= result.dist.length) {
           continue;
         }
         
-        double newDist = result.distances[u] + edge.travelTime;
+        double newDist = result.dist[u] + edge.travelTime;
         
-        if (newDist < result.distances[v]) {
-          result.distances[v] = newDist;
+        if (newDist < result.dist[v]) {
+          result.dist[v] = newDist;
           result.previous[v] = u;
           double priority = newDist + altHeuristic(landmarks, v, target);
           pq.offer(new DijkstraNode(v, priority));
@@ -278,7 +278,7 @@ public class oving7 {
 
   public static List<Integer> getPath(DijkstraResult result, int target) {
     List<Integer> path = new ArrayList<>();
-    if (result.distances[target] == Double.POSITIVE_INFINITY) {
+    if (result.dist[target] == Double.POSITIVE_INFINITY) {
       return path;
     }
     
@@ -291,10 +291,10 @@ public class oving7 {
   }
 
   public static String formatTime(double seconds) {
-    int totalSeconds = (int) seconds;
-    int hours = totalSeconds / 3600;
-    int minutes = (totalSeconds % 3600) / 60;
-    int secs = totalSeconds % 60;
+    int totSec = (int) (seconds/100);
+    int hours = totSec / 3600;
+    int minutes = (totSec % 3600) / 60;
+    int secs = totSec % 60;
     return String.format("%02d:%02d:%02d", hours, minutes, secs);
   }
 
@@ -348,6 +348,7 @@ public class oving7 {
         }
       }
       
+
       for (Edge edge : graph.adjacency.get(u)) {
         int v = edge.to;
         if (v >= distances.length) {
@@ -355,7 +356,6 @@ public class oving7 {
         }
         
         double newDist = distances[u] + edge.travelTime;
-        
         if (newDist < distances[v]) {
           distances[v] = newDist;
           previous[v] = u;
@@ -371,7 +371,6 @@ public class oving7 {
     Landmarks landmarks = new Landmarks(numLandmarks, graph.adjacency.size());
     
     selectLandmarks(graph, landmarks);
-    
     System.out.println("Selected " + numLandmarks + " landmarks");
     
     for (int i = 0; i < numLandmarks; i++) {
@@ -379,10 +378,10 @@ public class oving7 {
       System.out.println("Preprocessing landmark " + (i+1) + "/" + numLandmarks + " (node " + landmarkId + ")");
       
       DijkstraResult toResult = dijkstra(graph, landmarkId, -1);
-      landmarks.distancesFrom[i] = toResult.distances;
+      landmarks.distancesFrom[i] = toResult.dist;
       
       DijkstraResult fromResult = dijkstraReverse(graph, landmarkId);
-      landmarks.distancesTo[i] = fromResult.distances;
+      landmarks.distancesTo[i] = fromResult.dist;
     }
     
     return landmarks;
@@ -407,35 +406,33 @@ public class oving7 {
     DijkstraResult result = new DijkstraResult(graph.adjacency.size());
     PriorityQueue<DijkstraNode> pq = new PriorityQueue<>();
     
-    result.distances[start] = 0;
+    result.dist[start] = 0;
     pq.offer(new DijkstraNode(start, 0));
     
     while (!pq.isEmpty()) {
       DijkstraNode current = pq.poll();
       int u = current.nodeId;
       
-      if (current.distance > result.distances[u]) {
+      if (current.distance > result.dist[u]) {
         continue;
       }
-      
       result.nodesVisited++;
       
       for (Edge edge : graph.reverseAdjacency.get(u)) {
         int v = edge.to;
-        if (v >= result.distances.length) {
+        if (v >= result.dist.length) {
           continue;
         }
         
-        double newDist = result.distances[u] + edge.travelTime;
-        
-        if (newDist < result.distances[v]) {
-          result.distances[v] = newDist;
+        double newDist = result.dist[u] + edge.travelTime;
+        if (newDist < result.dist[v]) {
+          result.dist[v] = newDist;
           result.previous[v] = u;
           pq.offer(new DijkstraNode(v, newDist));
         }
       }
     }
-    
+
     return result;
   }
 
@@ -481,7 +478,6 @@ public class oving7 {
           System.out.println((i+1) + ". " + poi.node.poiName);
           System.out.println("   Node: " + poi.nodeId);
           System.out.println("   Travel time: " + formatTime(poi.distance));
-          System.out.println("   Distance: " + String.format("%.2f", poi.distance) + " seconds");
           System.out.println("   Path length: " + poi.path.size() + " nodes");
           if (poi.path.size() <= 20) {
             System.out.println("   Route: " + poi.path);
@@ -505,7 +501,7 @@ public class oving7 {
       
       System.out.println("Algorithm time: " + String.format("%.2f", dijkstraTime) + " ms");
       System.out.println("Nodes visited: " + dijkstraResult.nodesVisited);
-      System.out.println("Travel time: " + formatTime(dijkstraResult.distances[target]) + " (timer:minutter:sekunder)");
+      System.out.println("Travel time: " + formatTime(dijkstraResult.dist[target]) + " (timer:minutter:sekunder)");
       System.out.println("Path length: " + dijkstraPath.size() + " nodes");
       if (dijkstraPath.size() <= 50) {
         System.out.println("Route: " + dijkstraPath);
@@ -529,13 +525,13 @@ public class oving7 {
       
       System.out.println("Algorithm time: " + String.format("%.2f", altTime) + " ms");
       System.out.println("Nodes visited: " + altResult.nodesVisited);
-      System.out.println("Travel time: " + formatTime(altResult.distances[target]) + " (timer:minutter:sekunder)");
+      System.out.println("Travel time: " + formatTime(altResult.dist[target]) + " (timer:minutter:sekunder)");
       System.out.println("Path length: " + altPath.size() + " nodes");
       if (altPath.size() <= 50) {
         System.out.println("Route: " + altPath);
       }
       
-      System.out.println("\n=== Comparison ===");
+      System.out.println("\n");
       System.out.println("Speedup: " + String.format("%.2fx", dijkstraTime / altTime));
       System.out.println("Node reduction: " + String.format("%.1f%%", 100.0 * (dijkstraResult.nodesVisited - altResult.nodesVisited) / dijkstraResult.nodesVisited));
     }
